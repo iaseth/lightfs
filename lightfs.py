@@ -67,7 +67,7 @@ class AudioProgress(Static):
 
 class HelpScreen(ModalScreen):
 	"""A dialog showing keybindings, triggered by 'h'."""
-	
+
 	BINDINGS = [Binding("escape", "dismiss", "Dismiss"), Binding("h", "dismiss", "Dismiss")]
 
 	def compose(self) -> ComposeResult:
@@ -107,7 +107,7 @@ class PathItem(ListItem):
 			icon = "🎵 "
 		else:
 			icon = "📄 "
-			
+
 		super().__init__(Label(f"{icon}{path.name or str(path)}"), *args, **kwargs)
 
 
@@ -181,7 +181,7 @@ class LightFS(App):
 	#p1 { width: 25%; }
 	#p2 { width: 25%; }
 	#p3 { width: 50%; }
-	
+
 	#player_container {
 		dock: bottom;
 		height: 2;
@@ -255,7 +255,7 @@ class LightFS(App):
 		self.volume = 100
 		self.max_tabs = 99
 		self.show_hidden = False
-		
+
 		self.start_dir = Path.home()
 		self.config_file = Path.home() / ".config" / "lightfs" / "config.json"
 		self.bookmarks = [Path.home(), Path.home() / "Music", Path.home() / "Downloads"]
@@ -277,10 +277,10 @@ class LightFS(App):
 			try:
 				with open(self.config_file, "r") as f:
 					data = json.load(f)
-					
+
 				self.start_dir = Path(data.get("start_dir", Path.home()))
 				if not self.start_dir.exists(): self.start_dir = Path.home()
-				
+
 				hist = data.get("audio_history", {})
 				now = time.time()
 				for k, v in hist.items():
@@ -290,26 +290,26 @@ class LightFS(App):
 				saved_bms = data.get("bookmarks", [])
 				if saved_bms:
 					self.bookmarks = [Path(p) for p in saved_bms if Path(p).exists()]
-					
+
 				tabs_data = data.get("tabs", [])
 				active_tab_id = data.get("active_tab")
 			except Exception:
 				pass
-		
+
 		tc = self.query_one(TabbedContent)
 		if tabs_data:
 			existing_names = set()
 			for t in tabs_data:
 				c_dir = Path(t.get("current_dir", self.start_dir))
 				if not c_dir.exists(): c_dir = self.start_dir
-				
+
 				t_name = generate_tab_name(existing_names)
 				existing_names.add(t_name)
 				tab_id = f"tab-{t_name}"
-				
+
 				new_tab = FMTab(t_name, c_dir, id=tab_id)
 				tc.add_pane(new_tab)
-				
+
 			if active_tab_id:
 				try: tc.active = active_tab_id
 				except Exception: pass
@@ -320,16 +320,16 @@ class LightFS(App):
 		self.config_file.parent.mkdir(parents=True, exist_ok=True)
 		tabs_data = []
 		active_tab = None
-		
+
 		try:
 			tc = self.query_one(TabbedContent)
 			active_tab = tc.active
 		except Exception:
 			pass
-		
+
 		for tab in self.query(FMTab):
 			tabs_data.append({"current_dir": str(tab.current_dir)})
-			
+
 		data = {
 			"start_dir": str(self.start_dir),
 			"active_tab": active_tab,
@@ -348,7 +348,7 @@ class LightFS(App):
 			pos_resp = send_mpv_cmd(["get_property", "time-pos"])
 			if pos_resp and 'data' in pos_resp:
 				self.current_audio_time = pos_resp['data']
-				
+
 		if self.current_track_path and self.current_audio_time is not None:
 			self.audio_history[str(self.current_track_path)] = {
 				"time": self.current_audio_time,
@@ -366,7 +366,7 @@ class LightFS(App):
 			pos = pos_resp['data']
 			dur = dur_resp['data']
 			self.current_audio_time = pos
-			
+
 			if dur > 0:
 				self.query_one("#audio_progress", AudioProgress).progress = pos / dur
 				self.query_one("#audio_filename", Label).update(
@@ -490,7 +490,7 @@ class LightFS(App):
 		item = focused.highlighted_child
 		if not isinstance(item, PathItem): return
 		target_path = item.path
-		
+
 		if focused.id == "p1":
 			if target_path in self.bookmarks:
 				self.bookmarks.remove(target_path)
@@ -512,18 +512,18 @@ class LightFS(App):
 	def open_file(self, path: Path) -> None:
 		if path.suffix.lower() in ['.mp3', '.m4a', '.m4b']:
 			self.save_current_audio_state()
-			
+
 			if self.audio_process and self.audio_process.poll() is None:
 				self.audio_process.terminate()
 				self.audio_process.wait()
-				
+
 			self.current_track_path = path
 			self.current_track_name = path.name
-			
+
 			start_pos = 0
 			if str(path) in self.audio_history:
 				start_pos = self.audio_history[str(path)].get("time", 0)
-			
+
 			self.audio_process = subprocess.Popen(
 				["mpv", "--no-video", f"--start={start_pos}", f"--input-ipc-server={SOCKET_PATH}", str(path)],
 				stdin=subprocess.DEVNULL,
@@ -543,7 +543,7 @@ class LightFS(App):
 			self.save_current_audio_state()
 			self.audio_process.terminate()
 			self.audio_process.wait()
-			
+
 			self.current_track_path = None
 			self.query_one("#audio_filename", Label).update("No audio playing")
 			self.query_one("#audio_progress", AudioProgress).progress = 0.0
@@ -552,10 +552,17 @@ class LightFS(App):
 		send_mpv_cmd(["cycle", "mute"])
 		self.notify("Mute toggled")
 
-	def action_seek_m60(self) -> None: send_mpv_cmd(["seek", -60, "relative"])
-	def action_seek_60(self) -> None: send_mpv_cmd(["seek", 60, "relative"])
-	def action_seek_m300(self) -> None: send_mpv_cmd(["seek", -300, "relative"])
-	def action_seek_300(self) -> None: send_mpv_cmd(["seek", 300, "relative"])
+	def action_seek_m60(self) -> None:
+		send_mpv_cmd(["seek", -60, "relative"])
+
+	def action_seek_60(self) -> None:
+		send_mpv_cmd(["seek", 60, "relative"])
+
+	def action_seek_m300(self) -> None:
+		send_mpv_cmd(["seek", -300, "relative"])
+
+	def action_seek_300(self) -> None:
+		send_mpv_cmd(["seek", 300, "relative"])
 
 	def seek_absolute(self, percent: float) -> None:
 		send_mpv_cmd(["seek", percent, "absolute-percent"])
@@ -574,6 +581,7 @@ class LightFS(App):
 		if self.audio_process and self.audio_process.poll() is None:
 			self.audio_process.terminate()
 		self.exit()
+
 
 if __name__ == "__main__":
 	app = LightFS()
