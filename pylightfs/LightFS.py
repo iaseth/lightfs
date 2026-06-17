@@ -16,7 +16,7 @@ from .HelpScreen import HelpScreen
 from .PathItem import PathItem
 
 from .constants import AUDIO_EXTENSIONS
-from .mpv import send_mpv_cmd, seek_helper, SOCKET_PATH
+from .mpv import send_mpv_cmd, seek_absolute, seek_relative, SOCKET_PATH
 from .utils import format_time, generate_tab_name
 
 
@@ -78,6 +78,7 @@ class LightFS(App):
 		Binding("8", "goto_tab(8)", show=False),
 		Binding("9", "goto_tab(9)", show=False),
 		Binding("0", "goto_tab(0)", show=False),
+
 		Binding("left", "focus_left", "Focus Left"),
 		Binding("right", "focus_right", "Focus Right"),
 		Binding("u", "go_up", "Go Up"),
@@ -89,10 +90,13 @@ class LightFS(App):
 		Binding("space", "toggle_play", "Play/Pause"),
 		Binding("x", "stop_audio", "Stop Audio"),
 		Binding("m", "toggle_mute", "Mute"),
+
 		Binding("[", "seek_m60", "Seek -1m"),
 		Binding("]", "seek_60", "Seek +1m"),
 		Binding("{", "seek_m300", "Seek -5m"),
 		Binding("}", "seek_300", "Seek +5m"),
+		Binding("n", "seek_start", "Seek Start"),
+
 		Binding("-", "vol_down", "Vol -5%"),
 		Binding("+", "vol_up", "Vol +5%"),
 		Binding("=", "vol_up", "Vol +5%"),
@@ -426,10 +430,11 @@ class LightFS(App):
 		send_mpv_cmd(["cycle", "mute"])
 		self.notify("Mute toggled")
 
-	def action_seek_m60(self) -> None: seek_helper(-60)
-	def action_seek_60(self) -> None: seek_helper(60)
-	def action_seek_m300(self) -> None: seek_helper(-300)
-	def action_seek_300(self) -> None: seek_helper(300)
+	def action_seek_m60(self) -> None: seek_relative(-60)
+	def action_seek_60(self) -> None: seek_relative(60)
+	def action_seek_m300(self) -> None: seek_relative(-300)
+	def action_seek_300(self) -> None: seek_relative(300)
+	def action_seek_start(self) -> None: seek_absolute(0)
 
 	def seek_absolute(self, percent: float) -> None:
 		send_mpv_cmd(["seek", percent, "absolute-percent"])

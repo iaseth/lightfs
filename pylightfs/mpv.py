@@ -19,5 +19,8 @@ def send_mpv_cmd(cmd_list):
 		return None
 
 
-def seek_helper(n: int) -> None:
+def seek_relative(n: int) -> None:
 	send_mpv_cmd(["seek", n, "relative"])
+
+def seek_absolute(n: int) -> None:
+	send_mpv_cmd(["seek", n, "absolute"])
