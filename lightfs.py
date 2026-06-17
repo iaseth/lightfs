@@ -67,7 +67,7 @@ class AudioProgress(Static):
 
 class HelpScreen(ModalScreen):
 	"""A dialog showing keybindings, triggered by 'h'."""
-
+	
 	BINDINGS = [Binding("escape", "dismiss", "Dismiss"), Binding("h", "dismiss", "Dismiss")]
 
 	def compose(self) -> ComposeResult:
@@ -76,7 +76,7 @@ class HelpScreen(ModalScreen):
 			yield Label("Navigation:")
 			yield Label("  Left/Right : Switch panes")
 			yield Label("  Up/Down    : Select items")
-			yield Label("  Enter      : Open dir/audio")
+			yield Label("  Enter / 2xClick : Open dir/audio")
 			yield Label("  u          : Go up one dir")
 			yield Label("  .          : Toggle hidden items")
 			yield Label("Tabs & Bookmarks:")
@@ -101,20 +101,39 @@ class HelpScreen(ModalScreen):
 class PathItem(ListItem):
 	def __init__(self, path: Path, *args, **kwargs):
 		self.path = path
+		self.last_click = 0
 		if path.is_dir():
 			icon = "📁 "
 		elif path.suffix.lower() in ['.mp3', '.m4a', '.m4b']:
 			icon = "🎵 "
 		else:
 			icon = "📄 "
-
+			
 		super().__init__(Label(f"{icon}{path.name or str(path)}"), *args, **kwargs)
+
+	def on_click(self, event) -> None:
+		# 1. Stop event so ListView doesn't trigger the native single-click Enter behavior
+		event.stop() 
+		
+		# 2. Manually trigger the highlight visually
+		list_view = self.parent
+		if isinstance(list_view, ListView):
+			try:
+				list_view.index = list_view.children.index(self)
+			except ValueError:
+				pass
+		
+		# 3. Check for double click to execute
+		now = time.time()
+		if now - getattr(self, "last_click", 0) < 0.4:
+			self.app.execute_path(self.path)
+		self.last_click = now
 
 
 class FMTab(TabPane):
 	def __init__(self, title: str, current_dir: Path, *args, **kwargs):
 		super().__init__(title, *args, **kwargs)
-		self.tab_name = title  # Explicitly store the name to avoid version conflicts
+		self.tab_name = title 
 		self.current_dir = current_dir
 
 	def compose(self) -> ComposeResult:
@@ -126,7 +145,7 @@ class FMTab(TabPane):
 	def on_mount(self) -> None:
 		self.populate_bookmarks()
 		self.refresh_p2()
-		self.query_one("#p2", ListView).focus()
+		# Intentionally removed the aggressive focus() here to prevent the infinite tab-cycle bug on load
 
 	def populate_bookmarks(self) -> None:
 		p1 = self.query_one("#p1", ListView)
@@ -155,16 +174,10 @@ class FMTab(TabPane):
 				self.query_one("#p3", ListView).clear()
 
 	def on_list_view_selected(self, event: ListView.Selected) -> None:
+		"""Triggered ONLY by the Enter key now, since mouse clicks are stopped in PathItem."""
 		item = event.item
 		if not isinstance(item, PathItem): return
-		target_path = item.path
-
-		if target_path.is_dir():
-			self.current_dir = target_path
-			self.refresh_p2()
-			self.query_one("#p2", ListView).focus()
-		else:
-			self.app.open_file(target_path)
+		self.app.execute_path(item.path)
 
 
 class LightFS(App):
@@ -181,7 +194,7 @@ class LightFS(App):
 	#p1 { width: 25%; }
 	#p2 { width: 25%; }
 	#p3 { width: 50%; }
-
+	
 	#player_container {
 		dock: bottom;
 		height: 2;
@@ -255,7 +268,7 @@ class LightFS(App):
 		self.volume = 100
 		self.max_tabs = 99
 		self.show_hidden = False
-
+		
 		self.start_dir = Path.home()
 		self.config_file = Path.home() / ".config" / "lightfs" / "config.json"
 		self.bookmarks = [Path.home(), Path.home() / "Music", Path.home() / "Downloads"]
@@ -272,15 +285,15 @@ class LightFS(App):
 
 	def load_and_restore(self) -> None:
 		tabs_data = []
-		active_tab_id = None
+		active_tab_index = 0
 		if self.config_file.exists():
 			try:
 				with open(self.config_file, "r") as f:
 					data = json.load(f)
-
+					
 				self.start_dir = Path(data.get("start_dir", Path.home()))
 				if not self.start_dir.exists(): self.start_dir = Path.home()
-
+				
 				hist = data.get("audio_history", {})
 				now = time.time()
 				for k, v in hist.items():
@@ -290,49 +303,55 @@ class LightFS(App):
 				saved_bms = data.get("bookmarks", [])
 				if saved_bms:
 					self.bookmarks = [Path(p) for p in saved_bms if Path(p).exists()]
-
+					
 				tabs_data = data.get("tabs", [])
-				active_tab_id = data.get("active_tab")
+				active_tab_index = data.get("active_tab_index", 0)
 			except Exception:
 				pass
-
+		
 		tc = self.query_one(TabbedContent)
 		if tabs_data:
 			existing_names = set()
 			for t in tabs_data:
 				c_dir = Path(t.get("current_dir", self.start_dir))
 				if not c_dir.exists(): c_dir = self.start_dir
-
+				
 				t_name = generate_tab_name(existing_names)
 				existing_names.add(t_name)
 				tab_id = f"tab-{t_name}"
-
+				
 				new_tab = FMTab(t_name, c_dir, id=tab_id)
 				tc.add_pane(new_tab)
-
-			if active_tab_id:
-				try: tc.active = active_tab_id
-				except Exception: pass
+				
+			tabs = list(tc.query(TabPane))
+			if tabs and 0 <= active_tab_index < len(tabs):
+				# Setting this active ID safely cascades focus down to the single active tab
+				tc.active = tabs[active_tab_index].id
 		else:
 			self.action_new_tab()
 
 	def save_config(self) -> None:
 		self.config_file.parent.mkdir(parents=True, exist_ok=True)
 		tabs_data = []
-		active_tab = None
-
+		active_tab_idx = 0
+		
 		try:
 			tc = self.query_one(TabbedContent)
-			active_tab = tc.active
+			active_id = tc.active
+			tabs = list(tc.query(TabPane))
+			for i, t in enumerate(tabs):
+				if t.id == active_id:
+					active_tab_idx = i
+					break
 		except Exception:
 			pass
-
+		
 		for tab in self.query(FMTab):
 			tabs_data.append({"current_dir": str(tab.current_dir)})
-
+			
 		data = {
 			"start_dir": str(self.start_dir),
-			"active_tab": active_tab,
+			"active_tab_index": active_tab_idx,
 			"bookmarks": [str(b) for b in self.bookmarks],
 			"tabs": tabs_data,
 			"audio_history": self.audio_history
@@ -348,12 +367,18 @@ class LightFS(App):
 			pos_resp = send_mpv_cmd(["get_property", "time-pos"])
 			if pos_resp and 'data' in pos_resp:
 				self.current_audio_time = pos_resp['data']
-
+				
 		if self.current_track_path and self.current_audio_time is not None:
-			self.audio_history[str(self.current_track_path)] = {
-				"time": self.current_audio_time,
-				"timestamp": time.time()
-			}
+			track_key = str(self.current_track_path)
+			# Only save positions past the 5-minute mark
+			if self.current_audio_time >= 300: 
+				self.audio_history[track_key] = {
+					"time": self.current_audio_time,
+					"timestamp": time.time()
+				}
+			else:
+				# Wipe it if the user rewound below the threshold before closing
+				self.audio_history.pop(track_key, None)
 
 	def update_player_ui(self) -> None:
 		if not self.audio_process or self.audio_process.poll() is not None:
@@ -366,15 +391,26 @@ class LightFS(App):
 			pos = pos_resp['data']
 			dur = dur_resp['data']
 			self.current_audio_time = pos
-
+			
 			if dur > 0:
 				self.query_one("#audio_progress", AudioProgress).progress = pos / dur
 				self.query_one("#audio_filename", Label).update(
 					f"🎵 {self.current_track_name}   [{format_time(pos)} / {format_time(dur)}]   Vol: {self.volume}%"
 				)
 
+	def execute_path(self, path: Path) -> None:
+		"""Centralized handler for Enter keys and Double Clicks."""
+		if path.is_dir():
+			tc = self.query_one(TabbedContent)
+			tab = tc.active_pane
+			if isinstance(tab, FMTab):
+				tab.current_dir = path
+				tab.refresh_p2()
+				tab.query_one("#p2", ListView).focus()
+		else:
+			self.open_file(path)
+
 	def get_existing_tab_names(self):
-		"""Robustly extract tab names from our stored variable."""
 		return {tab.tab_name for tab in self.query(FMTab)}
 
 	def action_new_tab(self) -> None:
@@ -490,7 +526,7 @@ class LightFS(App):
 		item = focused.highlighted_child
 		if not isinstance(item, PathItem): return
 		target_path = item.path
-
+		
 		if focused.id == "p1":
 			if target_path in self.bookmarks:
 				self.bookmarks.remove(target_path)
@@ -512,18 +548,18 @@ class LightFS(App):
 	def open_file(self, path: Path) -> None:
 		if path.suffix.lower() in ['.mp3', '.m4a', '.m4b']:
 			self.save_current_audio_state()
-
+			
 			if self.audio_process and self.audio_process.poll() is None:
 				self.audio_process.terminate()
 				self.audio_process.wait()
-
+				
 			self.current_track_path = path
 			self.current_track_name = path.name
-
+			
 			start_pos = 0
 			if str(path) in self.audio_history:
 				start_pos = self.audio_history[str(path)].get("time", 0)
-
+			
 			self.audio_process = subprocess.Popen(
 				["mpv", "--no-video", f"--start={start_pos}", f"--input-ipc-server={SOCKET_PATH}", str(path)],
 				stdin=subprocess.DEVNULL,
@@ -543,7 +579,7 @@ class LightFS(App):
 			self.save_current_audio_state()
 			self.audio_process.terminate()
 			self.audio_process.wait()
-
+			
 			self.current_track_path = None
 			self.query_one("#audio_filename", Label).update("No audio playing")
 			self.query_one("#audio_progress", AudioProgress).progress = 0.0
@@ -552,17 +588,10 @@ class LightFS(App):
 		send_mpv_cmd(["cycle", "mute"])
 		self.notify("Mute toggled")
 
-	def action_seek_m60(self) -> None:
-		send_mpv_cmd(["seek", -60, "relative"])
-
-	def action_seek_60(self) -> None:
-		send_mpv_cmd(["seek", 60, "relative"])
-
-	def action_seek_m300(self) -> None:
-		send_mpv_cmd(["seek", -300, "relative"])
-
-	def action_seek_300(self) -> None:
-		send_mpv_cmd(["seek", 300, "relative"])
+	def action_seek_m60(self) -> None: send_mpv_cmd(["seek", -60, "relative"])
+	def action_seek_60(self) -> None: send_mpv_cmd(["seek", 60, "relative"])
+	def action_seek_m300(self) -> None: send_mpv_cmd(["seek", -300, "relative"])
+	def action_seek_300(self) -> None: send_mpv_cmd(["seek", 300, "relative"])
 
 	def seek_absolute(self, percent: float) -> None:
 		send_mpv_cmd(["seek", percent, "absolute-percent"])
@@ -581,7 +610,6 @@ class LightFS(App):
 		if self.audio_process and self.audio_process.poll() is None:
 			self.audio_process.terminate()
 		self.exit()
-
 
 if __name__ == "__main__":
 	app = LightFS()
