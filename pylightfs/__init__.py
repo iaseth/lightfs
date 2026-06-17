@@ -1,2 +1,2 @@
 
-from .lightfs import LightFS
+from .LightFS import LightFS
