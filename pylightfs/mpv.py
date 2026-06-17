@@ -1,9 +1,10 @@
 import json
 import socket
+import uuid
 
 
 
-SOCKET_PATH = "/tmp/lightfs_mpv.sock"
+SOCKET_PATH = f"/tmp/lightfs_mpv_{uuid.uuid4()}.sock"
 
 
 def send_mpv_cmd(cmd_list):
@@ -16,4 +17,3 @@ def send_mpv_cmd(cmd_list):
 			return json.loads(f.readline())
 	except Exception:
 		return None
-
