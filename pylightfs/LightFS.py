@@ -11,46 +11,14 @@ from textual.widgets import TabbedContent, TabPane, ListView, ListItem, Label
 from textual.screen import ModalScreen
 
 from .AudioProgress import AudioProgress
+from .FMListView import FMListView
 from .HelpScreen import HelpScreen
+from .PathItem import PathItem
+
 from .constants import AUDIO_EXTENSIONS
 from .mpv import send_mpv_cmd, SOCKET_PATH
 from .utils import format_time, get_filtered_paths, generate_tab_name
 
-
-
-class PathItem(ListItem):
-	def __init__(self, path: Path, *args, **kwargs):
-		self.path = path
-		self.last_click = 0
-		if path.is_dir():
-			icon = "📁 "
-		elif path.suffix.lower() in AUDIO_EXTENSIONS:
-			icon = "🎵 "
-		else:
-			icon = "📄 "
-
-		# Using rich.text.Text prevents UI markup parsing glitches with non-ASCII names
-		label_text = Text(f"{icon}{path.name or str(path)}")
-		super().__init__(Label(label_text), *args, **kwargs)
-
-	def on_click(self, event) -> None:
-		# Double-click threshold (0.4s) to execute path
-		now = time.time()
-		if now - getattr(self, "last_click", 0) < 0.4:
-			self.app.execute_path(self.path)
-		self.last_click = now
-
-
-class FMListView(ListView):
-	"""Custom ListView that ignores mouse clicks for execution and maps Enter strictly."""
-	BINDINGS = [
-		Binding("enter", "execute_highlighted", "Open", show=False)
-	]
-
-	def action_execute_highlighted(self) -> None:
-		item = self.highlighted_child
-		if isinstance(item, PathItem):
-			self.app.execute_path(item.path)
 
 
 class FMTab(TabPane):
