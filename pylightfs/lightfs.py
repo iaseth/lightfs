@@ -18,6 +18,14 @@ from .utils import format_time, get_filtered_paths, generate_tab_name
 
 SOCKET_PATH = "/tmp/lightfs_mpv.sock"
 
+AUDIO_EXTENSIONS = [
+	'.mp3', '.m4a', '.m4b', '.aac', '.wav',
+	'.flac', '.ogg', '.opus', '.aiff', '.aif',
+	'.wma', '.amr', '.ac3', '.eac3', '.dts',
+	'.ape', '.mpc', '.tta', '.spx', '.shn',
+	'.alac', '.aa', '.aax',
+]
+
 
 def send_mpv_cmd(cmd_list):
 	"""Sends JSON IPC commands to the running mpv socket."""
@@ -49,8 +57,11 @@ class AudioProgress(Static):
 
 class HelpScreen(ModalScreen):
 	"""A dialog showing keybindings, triggered by 'h'."""
-	
-	BINDINGS = [Binding("escape", "dismiss", "Dismiss"), Binding("h", "dismiss", "Dismiss")]
+
+	BINDINGS = [
+		Binding("escape", "dismiss", "Dismiss"),
+		Binding("h", "dismiss", "Dismiss")
+	]
 
 	def compose(self) -> ComposeResult:
 		with Vertical(id="help_dialog"):
@@ -86,11 +97,11 @@ class PathItem(ListItem):
 		self.last_click = 0
 		if path.is_dir():
 			icon = "📁 "
-		elif path.suffix.lower() in ['.mp3', '.m4a', '.m4b']:
+		elif path.suffix.lower() in AUDIO_EXTENSIONS:
 			icon = "🎵 "
 		else:
 			icon = "📄 "
-			
+
 		# Using rich.text.Text prevents UI markup parsing glitches with non-ASCII names
 		label_text = Text(f"{icon}{path.name or str(path)}")
 		super().__init__(Label(label_text), *args, **kwargs)
@@ -168,9 +179,9 @@ class LightFS(App):
 		padding: 0 1;
 	}
 	ListView:focus { border: double $accent; }
-	#p1 { width: 25%; }
-	#p2 { width: 25%; }
-	#p3 { width: 50%; }
+	#p1 { width: 20%; }
+	#p2 { width: 20%; }
+	#p3 { width: 60%; }
 	
 	#player_container {
 		dock: bottom;
@@ -520,7 +531,7 @@ class LightFS(App):
 		self.push_screen(HelpScreen())
 
 	def open_file(self, path: Path) -> None:
-		if path.suffix.lower() in ['.mp3', '.m4a', '.m4b']:
+		if path.suffix.lower() in AUDIO_EXTENSIONS:
 			self.save_current_audio_state()
 			
 			if self.audio_process and self.audio_process.poll() is None:
