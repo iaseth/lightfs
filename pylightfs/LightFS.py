@@ -425,7 +425,10 @@ class LightFS(App):
 	def action_quit(self) -> None:
 		self.save_current_audio_state()
 		self.save_config()
+		self.close_audio_process()
+		self.exit()
+
+	def close_audio_process(self):
 		if self.audio_process and self.audio_process.poll() is None:
 			self.audio_process.terminate()
-		self.exit()
 
