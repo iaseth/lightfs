@@ -23,44 +23,7 @@ from .utils import format_time, generate_tab_name
 
 class LightFS(App):
 	TITLE = "LightFS"
-	CSS = """
-	Horizontal { height: 1fr; }
-	ListView {
-		height: 1fr;
-		border: solid #444;
-		background: $surface;
-		padding: 0 1;
-	}
-	ListView:focus { border: double $accent; }
-	#p1 { width: 20%; }
-	#p2 { width: 20%; }
-	#p3 { width: 60%; }
-	
-	#player_container {
-		dock: bottom;
-		height: 2;
-		background: $surface;
-	}
-	#audio_filename {
-		width: 100%;
-		text-align: center;
-		background: $panel;
-	}
-	#audio_progress {
-		width: 100%;
-		color: $accent;
-	}
-	#help_dialog {
-		width: 40;
-		height: auto;
-		padding: 1 2;
-		background: $surface;
-		border: thick $accent;
-		align: center middle;
-	}
-	#help_title { text-align: center; text-style: bold; margin-bottom: 1;}
-	HelpScreen { align: center middle; }
-	"""
+	CSS_PATH = "styles.tcss"
 
 	BINDINGS = [
 		# goto tab
