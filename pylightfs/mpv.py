@@ -17,3 +17,7 @@ def send_mpv_cmd(cmd_list):
 			return json.loads(f.readline())
 	except Exception:
 		return None
+
+
+def seek_helper(n: int) -> None:
+	send_mpv_cmd(["seek", n, "relative"])

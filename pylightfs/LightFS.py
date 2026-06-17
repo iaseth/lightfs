@@ -16,7 +16,7 @@ from .HelpScreen import HelpScreen
 from .PathItem import PathItem
 
 from .constants import AUDIO_EXTENSIONS
-from .mpv import send_mpv_cmd, SOCKET_PATH
+from .mpv import send_mpv_cmd, seek_helper, SOCKET_PATH
 from .utils import format_time, generate_tab_name
 
 
@@ -426,10 +426,10 @@ class LightFS(App):
 		send_mpv_cmd(["cycle", "mute"])
 		self.notify("Mute toggled")
 
-	def action_seek_m60(self) -> None: send_mpv_cmd(["seek", -60, "relative"])
-	def action_seek_60(self) -> None: send_mpv_cmd(["seek", 60, "relative"])
-	def action_seek_m300(self) -> None: send_mpv_cmd(["seek", -300, "relative"])
-	def action_seek_300(self) -> None: send_mpv_cmd(["seek", 300, "relative"])
+	def action_seek_m60(self) -> None: seek_helper(-60)
+	def action_seek_60(self) -> None: seek_helper(60)
+	def action_seek_m300(self) -> None: seek_helper(-300)
+	def action_seek_300(self) -> None: seek_helper(300)
 
 	def seek_absolute(self, percent: float) -> None:
 		send_mpv_cmd(["seek", percent, "absolute-percent"])
