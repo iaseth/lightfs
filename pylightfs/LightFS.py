@@ -95,7 +95,7 @@ class LightFS(App):
 		# playback
 		Binding("space", "toggle_play", "Play/Pause"),
 		Binding("x", "stop_audio", "Stop Audio"),
-		Binding("m", "toggle_mute", "Mute"),
+		Binding("X", "stop_audio(1)", "Stop Audio"),
 
 		Binding("comma", "seek_relative(-10)", "Seek -10s"),
 		Binding("full_stop", "seek_relative(10)", "Seek +10s"),
@@ -108,10 +108,12 @@ class LightFS(App):
 		Binding("left_curly_bracket", "seek_relative(-1800)", "Seek -30m"),
 		Binding("right_curly_bracket", "seek_relative(1800)", "Seek +30m"),
 
-		Binding("-", "vol_down", "Vol -5%"),
-		Binding("=", "vol_up", "Vol +5%"),
-		Binding("_", "vol_down", "Vol -5%"),
-		Binding("+", "vol_up", "Vol +5%"),
+		Binding("-", "vol_change(-5)", "Vol -5%"),
+		Binding("=", "vol_change(5)", "Vol +5%"),
+		Binding("_", "vol_change(-20)", "Vol -20%"),
+		Binding("+", "vol_change(20)", "Vol +20%"),
+		Binding("m", "toggle_mute", "Mute"),
+
 		Binding("q", "quit", "Quit"),
 	]
 
@@ -428,12 +430,14 @@ class LightFS(App):
 	def action_toggle_play(self) -> None:
 		send_mpv_cmd(["cycle", "pause"])
 
-	def action_stop_audio(self) -> None:
+	def action_stop_audio(self, no_save: int=0) -> None:
 		if self.audio_process and self.audio_process.poll() is None:
-			self.save_current_audio_state()
+			if no_save == 0:
+				self.save_current_audio_state()
+
 			self.audio_process.terminate()
 			self.audio_process.wait()
-			
+
 			self.current_track_path = None
 			self.query_one("#audio_filename", Label).update("No audio playing")
 			self.query_one("#audio_progress", AudioProgress).progress = 0.0
@@ -451,12 +455,8 @@ class LightFS(App):
 	def seek_absolute(self, percent: float) -> None:
 		send_mpv_cmd(["seek", percent, "absolute-percent"])
 
-	def action_vol_down(self) -> None:
-		self.volume = max(0, self.volume - 5)
-		send_mpv_cmd(["set_property", "volume", self.volume])
-
-	def action_vol_up(self) -> None:
-		self.volume = min(100, self.volume + 5)
+	def action_vol_change(self, ch: int) -> None:
+		self.volume = max(0, min(100, self.volume + ch))
 		send_mpv_cmd(["set_property", "volume", self.volume])
 
 	def action_quit(self) -> None:
