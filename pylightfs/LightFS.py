@@ -90,7 +90,7 @@ class LightFS(App):
 		self.volume = 100
 		self.max_tabs = 99
 		self.show_hidden = False
-		
+
 		self.start_dir = Path.home()
 		self.config_file = Path.home() / ".config" / "lightfs" / "config.json"
 		self.bookmarks = [Path.home(), Path.home() / "Music", Path.home() / "Downloads"]
@@ -112,10 +112,10 @@ class LightFS(App):
 			try:
 				with open(self.config_file, "r") as f:
 					data = json.load(f)
-					
+
 				self.start_dir = Path(data.get("start_dir", Path.home()))
 				if not self.start_dir.exists(): self.start_dir = Path.home()
-				
+
 				hist = data.get("audio_history", {})
 				now = time.time()
 				for k, v in hist.items():
@@ -125,26 +125,26 @@ class LightFS(App):
 				saved_bms = data.get("bookmarks", [])
 				if saved_bms:
 					self.bookmarks = [Path(p) for p in saved_bms if Path(p).exists()]
-					
+
 				tabs_data = data.get("tabs", [])
 				active_tab_index = data.get("active_tab_index", 0)
 			except Exception:
 				pass
-		
+
 		tc = self.query_one(TabbedContent)
 		if tabs_data:
 			existing_names = set()
 			for t in tabs_data:
 				c_dir = Path(t.get("current_dir", self.start_dir))
 				if not c_dir.exists(): c_dir = self.start_dir
-				
+
 				t_name = generate_tab_name(existing_names)
 				existing_names.add(t_name)
 				tab_id = f"tab-{t_name}"
-				
+
 				new_tab = FMTab(t_name, c_dir, id=tab_id)
 				tc.add_pane(new_tab)
-				
+
 			tabs = list(tc.query(TabPane))
 			if tabs and 0 <= active_tab_index < len(tabs):
 				tc.active = tabs[active_tab_index].id
@@ -155,7 +155,7 @@ class LightFS(App):
 		self.config_file.parent.mkdir(parents=True, exist_ok=True)
 		tabs_data = []
 		active_tab_idx = 0
-		
+
 		try:
 			tc = self.query_one(TabbedContent)
 			active_id = tc.active
@@ -166,10 +166,10 @@ class LightFS(App):
 					break
 		except Exception:
 			pass
-		
+
 		for tab in self.query(FMTab):
 			tabs_data.append({"current_dir": str(tab.current_dir)})
-			
+
 		data = {
 			"start_dir": str(self.start_dir),
 			"active_tab_index": active_tab_idx,
@@ -188,7 +188,7 @@ class LightFS(App):
 			pos_resp = send_mpv_cmd(["get_property", "time-pos"])
 			if pos_resp and 'data' in pos_resp:
 				self.current_audio_time = pos_resp['data']
-				
+
 		if self.current_track_path and self.current_audio_time is not None:
 			track_key = str(self.current_track_path)
 			if self.current_audio_time >= 300: 
@@ -210,7 +210,7 @@ class LightFS(App):
 			pos = pos_resp['data']
 			dur = dur_resp['data']
 			self.current_audio_time = pos
-			
+
 			if dur > 0:
 				self.query_one("#audio_progress", AudioProgress).progress = pos / dur
 				self.query_one("#audio_filename", Label).update(
@@ -261,7 +261,7 @@ class LightFS(App):
 		tc = self.query_one(TabbedContent)
 		tabs = list(tc.query(TabPane))
 		if not tabs: return
-		
+
 		if num == 0:
 			tc.active = tabs[-1].id
 		else:
@@ -345,7 +345,7 @@ class LightFS(App):
 		item = focused.highlighted_child
 		if not isinstance(item, PathItem): return
 		target_path = item.path
-		
+
 		if focused.id == "p1":
 			if target_path in self.bookmarks:
 				self.bookmarks.remove(target_path)
@@ -367,18 +367,18 @@ class LightFS(App):
 	def open_file(self, path: Path) -> None:
 		if path.suffix.lower() in AUDIO_EXTENSIONS:
 			self.save_current_audio_state()
-			
+
 			if self.audio_process and self.audio_process.poll() is None:
 				self.audio_process.terminate()
 				self.audio_process.wait()
-				
+
 			self.current_track_path = path
 			self.current_track_name = path.name
-			
+
 			start_pos = 0
 			if str(path) in self.audio_history:
 				start_pos = self.audio_history[str(path)].get("time", 0)
-			
+
 			self.audio_process = subprocess.Popen(
 				["mpv", "--no-video", f"--start={start_pos}", f"--input-ipc-server={SOCKET_PATH}", str(path)],
 				stdin=subprocess.DEVNULL,
