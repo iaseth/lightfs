@@ -63,11 +63,7 @@ class LightFS(App):
 	"""
 
 	BINDINGS = [
-		Binding("t", "new_tab", "New Tab"),
-		Binding("z", "close_tab", "Close Tab"),
-		Binding("Z", "close_other_tabs", "Close Others"),
-		Binding("o", "prev_tab", "Prev Tab"),
-		Binding("p", "next_tab", "Next Tab"),
+		# goto tab
 		Binding("1", "goto_tab(1)", show=False),
 		Binding("2", "goto_tab(2)", show=False),
 		Binding("3", "goto_tab(3)", show=False),
@@ -79,27 +75,43 @@ class LightFS(App):
 		Binding("9", "goto_tab(9)", show=False),
 		Binding("0", "goto_tab(0)", show=False),
 
+		# tab management
+		Binding("t", "new_tab", "New Tab"),
+		Binding("w", "close_tab", "Close Tab"),
+		Binding("W", "close_other_tabs", "Close Others"),
+		Binding("o", "prev_tab", "Prev Tab"),
+		Binding("p", "next_tab", "Next Tab"),
+
+		# actions in current tab
 		Binding("left", "focus_left", "Focus Left"),
 		Binding("right", "focus_right", "Focus Right"),
 		Binding("u", "go_up", "Go Up"),
 		Binding("b", "toggle_bookmark", "Bookmark"),
-		Binding(".", "toggle_hidden", "Toggle Hidden"),
+		Binding("h", "toggle_hidden", "Toggle Hidden"),
 		Binding("S", "set_global_start", "Set Start"),
 		Binding("s", "go_start", "Go Start"),
-		Binding("h", "show_help", "Help"),
+		Binding("?", "show_help", "Help"),
+
+		# playback
 		Binding("space", "toggle_play", "Play/Pause"),
 		Binding("x", "stop_audio", "Stop Audio"),
 		Binding("m", "toggle_mute", "Mute"),
 
-		Binding("[", "seek_m60", "Seek -1m"),
-		Binding("]", "seek_60", "Seek +1m"),
-		Binding("{", "seek_m300", "Seek -5m"),
-		Binding("}", "seek_300", "Seek +5m"),
-		Binding("n", "seek_start", "Seek Start"),
+		Binding("comma", "seek_relative(-10)", "Seek -10s"),
+		Binding("full_stop", "seek_relative(10)", "Seek +10s"),
+		Binding("less_than_sign", "seek_relative(-60)", "Seek -1m"),
+		Binding("greater_than_sign", "seek_relative(60)", "Seek +1m"),
+		Binding("slash", "seek_absolute(0)", "Seek Start"),
+
+		Binding("left_square_bracket", "seek_relative(-300)", "Seek -5m"),
+		Binding("right_square_bracket", "seek_relative(300)", "Seek +5m"),
+		Binding("left_curly_bracket", "seek_relative(-1800)", "Seek -30m"),
+		Binding("right_curly_bracket", "seek_relative(1800)", "Seek +30m"),
 
 		Binding("-", "vol_down", "Vol -5%"),
-		Binding("+", "vol_up", "Vol +5%"),
 		Binding("=", "vol_up", "Vol +5%"),
+		Binding("_", "vol_down", "Vol -5%"),
+		Binding("+", "vol_up", "Vol +5%"),
 		Binding("q", "quit", "Quit"),
 	]
 
@@ -430,11 +442,11 @@ class LightFS(App):
 		send_mpv_cmd(["cycle", "mute"])
 		self.notify("Mute toggled")
 
-	def action_seek_m60(self) -> None: seek_relative(-60)
-	def action_seek_60(self) -> None: seek_relative(60)
-	def action_seek_m300(self) -> None: seek_relative(-300)
-	def action_seek_300(self) -> None: seek_relative(300)
-	def action_seek_start(self) -> None: seek_absolute(0)
+	def action_seek_relative(self, n: int) -> None:
+		seek_relative(n)
+
+	def action_seek_absolute(self, n: int) -> None:
+		seek_absolute(0)
 
 	def seek_absolute(self, percent: float) -> None:
 		send_mpv_cmd(["seek", percent, "absolute-percent"])
