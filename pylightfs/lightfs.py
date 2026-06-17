@@ -1,9 +1,9 @@
 import subprocess
 import json
 import socket
-import random
 import time
 from pathlib import Path
+
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -12,7 +12,12 @@ from textual.widgets import TabbedContent, TabPane, ListView, ListItem, Label, S
 from textual.screen import ModalScreen
 from textual.reactive import reactive
 
+from .utils import format_time, get_filtered_paths, generate_tab_name
+
+
+
 SOCKET_PATH = "/tmp/lightfs_mpv.sock"
+
 
 def send_mpv_cmd(cmd_list):
 	"""Sends JSON IPC commands to the running mpv socket."""
@@ -24,30 +29,6 @@ def send_mpv_cmd(cmd_list):
 			return json.loads(f.readline())
 	except Exception:
 		return None
-
-def format_time(seconds):
-	if seconds is None:
-		return "00:00"
-	m, s = divmod(int(seconds), 60)
-	return f"{m:02d}:{s:02d}"
-
-def get_filtered_paths(directory: Path, show_hidden: bool):
-	try:
-		paths = directory.iterdir()
-		if not show_hidden:
-			paths = (p for p in paths if not p.name.startswith('.'))
-		return sorted(paths, key=lambda x: (not x.is_dir(), x.name.lower()))
-	except PermissionError:
-		return []
-
-def generate_tab_name(existing_names):
-	"""Generates a unique CVC string for tab titles."""
-	consonants = "bcdfghjklmnpqrstvwxyz"
-	vowels = "aeiou"
-	while True:
-		name = random.choice(consonants) + random.choice(vowels) + random.choice(consonants)
-		if name not in existing_names:
-			return name
 
 
 class AudioProgress(Static):
