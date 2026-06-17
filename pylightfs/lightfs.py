@@ -12,19 +12,9 @@ from textual.widgets import TabbedContent, TabPane, ListView, ListItem, Label, S
 from textual.screen import ModalScreen
 from textual.reactive import reactive
 
+from .constants import AUDIO_EXTENSIONS, SOCKET_PATH
 from .utils import format_time, get_filtered_paths, generate_tab_name
 
-
-
-SOCKET_PATH = "/tmp/lightfs_mpv.sock"
-
-AUDIO_EXTENSIONS = [
-	'.mp3', '.m4a', '.m4b', '.aac', '.wav',
-	'.flac', '.ogg', '.opus', '.aiff', '.aif',
-	'.wma', '.amr', '.ac3', '.eac3', '.dts',
-	'.ape', '.mpc', '.tta', '.spx', '.shn',
-	'.alac', '.aa', '.aax',
-]
 
 
 def send_mpv_cmd(cmd_list):
