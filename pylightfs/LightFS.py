@@ -7,66 +7,15 @@ from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
-from textual.widgets import TabbedContent, TabPane, ListView, ListItem, Label, Static
+from textual.widgets import TabbedContent, TabPane, ListView, ListItem, Label
 from textual.screen import ModalScreen
-from textual.reactive import reactive
 
+from .AudioProgress import AudioProgress
+from .HelpScreen import HelpScreen
 from .constants import AUDIO_EXTENSIONS
 from .mpv import send_mpv_cmd, SOCKET_PATH
 from .utils import format_time, get_filtered_paths, generate_tab_name
 
-
-
-class AudioProgress(Static):
-	"""Interactive progress bar for audio playback."""
-	progress = reactive(0.0)
-
-	def render(self):
-		width = self.size.width
-		if width == 0: return ""
-		filled = int(width * self.progress)
-		return "█" * filled + "━" * (width - filled)
-
-	def on_click(self, event):
-		if self.size.width > 0:
-			percent = (event.x / self.size.width) * 100
-			self.app.seek_absolute(percent)
-
-
-class HelpScreen(ModalScreen):
-	"""A dialog showing keybindings, triggered by 'h'."""
-
-	BINDINGS = [
-		Binding("escape", "dismiss", "Dismiss"),
-		Binding("h", "dismiss", "Dismiss")
-	]
-
-	def compose(self) -> ComposeResult:
-		with Vertical(id="help_dialog"):
-			yield Label("=== LightFS Keybindings ===", id="help_title")
-			yield Label("Navigation:")
-			yield Label("  Left/Right : Switch panes")
-			yield Label("  Up/Down    : Select items")
-			yield Label("  Enter / 2xClick : Open dir/audio")
-			yield Label("  u          : Go up one dir")
-			yield Label("  .          : Toggle hidden items")
-			yield Label("Tabs & Bookmarks:")
-			yield Label("  t          : New tab")
-			yield Label("  z / Z      : Close tab / Close others")
-			yield Label("  o / p      : Prev / Next tab")
-			yield Label("  1-9, 0     : Select tab (0 = last)")
-			yield Label("  b          : Toggle bookmark")
-			yield Label("  S / s      : Set Global Start / Go to Start")
-			yield Label("Audio Player:")
-			yield Label("  Space / x  : Play/Pause / Stop")
-			yield Label("  m          : Toggle Mute")
-			yield Label("  [ / ]      : Seek -1m / +1m")
-			yield Label("  { / }      : Seek -5m / +5m")
-			yield Label("  - / + (=)  : Volume -5% / +5%")
-			yield Label("\nPress Esc or h to close.")
-
-	def action_dismiss(self) -> None:
-		self.app.pop_screen()
 
 
 class PathItem(ListItem):
