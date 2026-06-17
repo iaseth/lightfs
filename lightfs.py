@@ -4,6 +4,7 @@ import socket
 import random
 import time
 from pathlib import Path
+from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
@@ -109,25 +110,28 @@ class PathItem(ListItem):
 		else:
 			icon = "📄 "
 			
-		super().__init__(Label(f"{icon}{path.name or str(path)}"), *args, **kwargs)
+		# Using rich.text.Text prevents UI markup parsing glitches with non-ASCII names
+		label_text = Text(f"{icon}{path.name or str(path)}")
+		super().__init__(Label(label_text), *args, **kwargs)
 
 	def on_click(self, event) -> None:
-		# 1. Stop event so ListView doesn't trigger the native single-click Enter behavior
-		event.stop() 
-		
-		# 2. Manually trigger the highlight visually
-		list_view = self.parent
-		if isinstance(list_view, ListView):
-			try:
-				list_view.index = list_view.children.index(self)
-			except ValueError:
-				pass
-		
-		# 3. Check for double click to execute
+		# Double-click threshold (0.4s) to execute path
 		now = time.time()
 		if now - getattr(self, "last_click", 0) < 0.4:
 			self.app.execute_path(self.path)
 		self.last_click = now
+
+
+class FMListView(ListView):
+	"""Custom ListView that ignores mouse clicks for execution and maps Enter strictly."""
+	BINDINGS = [
+		Binding("enter", "execute_highlighted", "Open", show=False)
+	]
+
+	def action_execute_highlighted(self) -> None:
+		item = self.highlighted_child
+		if isinstance(item, PathItem):
+			self.app.execute_path(item.path)
 
 
 class FMTab(TabPane):
@@ -138,46 +142,38 @@ class FMTab(TabPane):
 
 	def compose(self) -> ComposeResult:
 		with Horizontal():
-			yield ListView(id="p1")
-			yield ListView(id="p2")
-			yield ListView(id="p3")
+			yield FMListView(id="p1")
+			yield FMListView(id="p2")
+			yield FMListView(id="p3")
 
 	def on_mount(self) -> None:
 		self.populate_bookmarks()
 		self.refresh_p2()
-		# Intentionally removed the aggressive focus() here to prevent the infinite tab-cycle bug on load
 
 	def populate_bookmarks(self) -> None:
-		p1 = self.query_one("#p1", ListView)
+		p1 = self.query_one("#p1", FMListView)
 		p1.clear()
 		for bm in self.app.bookmarks:
 			p1.append(PathItem(bm))
 
 	def refresh_p2(self) -> None:
-		p2 = self.query_one("#p2", ListView)
+		p2 = self.query_one("#p2", FMListView)
 		p2.clear()
 		for p in get_filtered_paths(self.current_dir, self.app.show_hidden):
 			p2.append(PathItem(p))
 
 	def refresh_p3(self, target_dir: Path) -> None:
-		p3 = self.query_one("#p3", ListView)
+		p3 = self.query_one("#p3", FMListView)
 		p3.clear()
 		for p in get_filtered_paths(target_dir, self.app.show_hidden):
 			p3.append(PathItem(p))
 
 	def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
+		"""Update p3 only when a directory is highlighted. Leaves p3 intact for files."""
 		if event.list_view.id == "p2":
 			item = event.item
 			if isinstance(item, PathItem) and item.path.is_dir():
 				self.refresh_p3(item.path)
-			else:
-				self.query_one("#p3", ListView).clear()
-
-	def on_list_view_selected(self, event: ListView.Selected) -> None:
-		"""Triggered ONLY by the Enter key now, since mouse clicks are stopped in PathItem."""
-		item = event.item
-		if not isinstance(item, PathItem): return
-		self.app.execute_path(item.path)
 
 
 class LightFS(App):
@@ -325,7 +321,6 @@ class LightFS(App):
 				
 			tabs = list(tc.query(TabPane))
 			if tabs and 0 <= active_tab_index < len(tabs):
-				# Setting this active ID safely cascades focus down to the single active tab
 				tc.active = tabs[active_tab_index].id
 		else:
 			self.action_new_tab()
@@ -370,14 +365,12 @@ class LightFS(App):
 				
 		if self.current_track_path and self.current_audio_time is not None:
 			track_key = str(self.current_track_path)
-			# Only save positions past the 5-minute mark
 			if self.current_audio_time >= 300: 
 				self.audio_history[track_key] = {
 					"time": self.current_audio_time,
 					"timestamp": time.time()
 				}
 			else:
-				# Wipe it if the user rewound below the threshold before closing
 				self.audio_history.pop(track_key, None)
 
 	def update_player_ui(self) -> None:
@@ -406,7 +399,7 @@ class LightFS(App):
 			if isinstance(tab, FMTab):
 				tab.current_dir = path
 				tab.refresh_p2()
-				tab.query_one("#p2", ListView).focus()
+				tab.query_one("#p2", FMListView).focus()
 		else:
 			self.open_file(path)
 
@@ -468,7 +461,7 @@ class LightFS(App):
 				break
 
 	def on_tabbed_content_tab_activated(self, event: TabbedContent.TabActivated) -> None:
-		try: event.pane.query_one("#p2", ListView).focus()
+		try: event.pane.query_one("#p2", FMListView).focus()
 		except Exception: pass
 
 	def action_focus_left(self) -> None: self.move_pane_focus(-1)
@@ -478,7 +471,7 @@ class LightFS(App):
 		tc = self.query_one(TabbedContent)
 		active_tab = tc.active_pane
 		if not active_tab: return
-		panes = list(active_tab.query(ListView))
+		panes = list(active_tab.query(FMListView))
 		if not panes: return
 		try:
 			current_idx = panes.index(self.focused)
@@ -493,7 +486,7 @@ class LightFS(App):
 		if isinstance(tab, FMTab):
 			tab.current_dir = tab.current_dir.parent
 			tab.refresh_p2()
-			tab.query_one("#p2", ListView).focus()
+			tab.query_one("#p2", FMListView).focus()
 
 	def action_toggle_hidden(self) -> None:
 		self.show_hidden = not self.show_hidden
@@ -502,8 +495,8 @@ class LightFS(App):
 		tab = tc.active_pane
 		if isinstance(tab, FMTab):
 			tab.refresh_p2()
-			if len(tab.query_one("#p2", ListView).children) == 0:
-				tab.query_one("#p3", ListView).clear()
+			if len(tab.query_one("#p2", FMListView).children) == 0:
+				tab.query_one("#p3", FMListView).clear()
 
 	def action_set_global_start(self) -> None:
 		tc = self.query_one(TabbedContent)
@@ -518,11 +511,11 @@ class LightFS(App):
 		if isinstance(tab, FMTab):
 			tab.current_dir = self.start_dir
 			tab.refresh_p2()
-			tab.query_one("#p2", ListView).focus()
+			tab.query_one("#p2", FMListView).focus()
 
 	def action_toggle_bookmark(self) -> None:
 		focused = self.focused
-		if not isinstance(focused, ListView): return
+		if not isinstance(focused, FMListView): return
 		item = focused.highlighted_child
 		if not isinstance(item, PathItem): return
 		target_path = item.path
