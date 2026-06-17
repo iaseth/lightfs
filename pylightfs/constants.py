@@ -1,6 +1,4 @@
 
-SOCKET_PATH = "/tmp/lightfs_mpv.sock"
-
 AUDIO_EXTENSIONS = [
 	'.mp3', '.m4a', '.m4b', '.aac', '.wav',
 	'.flac', '.ogg', '.opus', '.aiff', '.aif',

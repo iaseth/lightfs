@@ -1,6 +1,5 @@
 import subprocess
 import json
-import socket
 import time
 from pathlib import Path
 
@@ -12,21 +11,10 @@ from textual.widgets import TabbedContent, TabPane, ListView, ListItem, Label, S
 from textual.screen import ModalScreen
 from textual.reactive import reactive
 
-from .constants import AUDIO_EXTENSIONS, SOCKET_PATH
+from .constants import AUDIO_EXTENSIONS
+from .mpv import send_mpv_cmd, SOCKET_PATH
 from .utils import format_time, get_filtered_paths, generate_tab_name
 
-
-
-def send_mpv_cmd(cmd_list):
-	"""Sends JSON IPC commands to the running mpv socket."""
-	try:
-		with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
-			s.connect(SOCKET_PATH)
-			s.sendall((json.dumps({"command": cmd_list}) + "\n").encode())
-			f = s.makefile()
-			return json.loads(f.readline())
-	except Exception:
-		return None
 
 
 class AudioProgress(Static):
