@@ -78,6 +78,7 @@ class LightFS(App):
 		Binding("m", "toggle_mute", "Mute"),
 
 		Binding("q", "quit", "Quit"),
+		Binding("Q", "quit(1)", "Quit"),
 	]
 
 	def __init__(self):
@@ -422,9 +423,10 @@ class LightFS(App):
 		self.volume = max(0, min(100, self.volume + ch))
 		send_mpv_cmd(["set_property", "volume", self.volume])
 
-	def action_quit(self) -> None:
+	def action_quit(self, skip_save=0) -> None:
 		self.save_current_audio_state()
-		self.save_config()
+		if skip_save == 0:
+			self.save_config()
 		self.close_audio_process()
 		self.exit()
 
