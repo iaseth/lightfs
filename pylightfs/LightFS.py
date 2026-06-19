@@ -38,12 +38,15 @@ class LightFS(App):
 		Binding("9", "goto_tab(9)", show=False),
 		Binding("0", "goto_tab(0)", show=False),
 
+		Binding("o,pageup", "prev_tab", "Prev Tab"),
+		Binding("p,pagedown", "next_tab", "Next Tab"),
+		Binding("O,home", "goto_tab(1)", show=False),
+		Binding("P,end", "goto_tab(0)", show=False),
+
 		# tab management
 		Binding("t", "new_tab", "New Tab"),
 		Binding("w", "close_tab", "Close Tab"),
 		Binding("W", "close_other_tabs", "Close Others"),
-		Binding("o", "prev_tab", "Prev Tab"),
-		Binding("p", "next_tab", "Next Tab"),
 
 		# actions in current tab
 		Binding("left", "focus_left", "Focus Left"),
