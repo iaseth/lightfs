@@ -1,5 +1,6 @@
 import subprocess
 import json
+import os
 import time
 from pathlib import Path
 
@@ -57,6 +58,7 @@ class LightFS(App):
 		Binding("S", "set_global_start", "Set Start"),
 		Binding("s", "go_start", "Go Start"),
 		Binding("?", "show_help", "Help"),
+		Binding("backslash", "open_terminal", "Terminal"),
 
 		# playback
 		Binding("space", "toggle_play", "Play/Pause"),
@@ -367,6 +369,28 @@ class LightFS(App):
 
 	def action_show_help(self) -> None:
 		self.push_screen(HelpScreen())
+
+	def action_open_terminal(self) -> None:
+		"""Opens an external terminal window in the active tab's current directory."""
+		tc = self.query_one(TabbedContent)
+		tab = tc.active_pane
+
+		if isinstance(tab, FMTab):
+			target_dir = str(tab.current_dir)
+			# Respects user's $TERMINAL env variable, defaults to standard Fedora terminal
+			term_app = os.environ.get("TERMINAL", "gnome-terminal")
+
+			try:
+				subprocess.Popen(
+					[term_app],
+					cwd=target_dir,
+					stdout=subprocess.DEVNULL,
+					stderr=subprocess.DEVNULL
+				)
+				self.notify(f"Terminal opened in {tab.current_dir.name}")
+			except FileNotFoundError:
+				self.notify(f"Could not find terminal: {term_app}", severity="error")
+
 
 	def open_file(self, path: Path) -> None:
 		if path.suffix.lower() in AUDIO_EXTENSIONS:
